@@ -1,16 +1,136 @@
-
+project:
+  type: website 
+  output-dir: docs
 
 
 # Myname
+
+
 ```{r}
-a = 1
+#| echo: false
+#| include: false
+# install.packages("opendatatoronto")
+# install.packages("dplyr")
+# install.packages("knitr")
+# install.packages("janitor")
+# install.packages("lubridate")
+# install.packages("tidyverse")
+# install.packages("usethis")
+library(opendatatoronto)
+library(dplyr)
+library(knitr)
+library(janitor)
+library(lubridate)
+library(tidyverse)
+library(usethis)
 ```
 
 ```{r}
-a = 1
-print(a)
+install.packages("babynames")
+install.packages("leaflet")
+install.packages("mapdeck")
+install.packages("shiny")
+install.packages("tidyverse")
+install.packages("troopdata")
+install.packages("usethis")
+library(babynames)
+library(leaflet)
+library(mapdeck)
+library(shiny)
+library(tidyverse)
+library(troopdata)
+library(usethis)
+```
+```{r}
+# use_git()
+# use_github()
 ```
 
 ```{r}
-a = 1
+bases <- get_basedata()
+
+# Some of the bases include unexpected characters which we need to address
+Encoding(bases$basename) <- "latin1"
+
+leaflet(data = bases) |>
+  addTiles() |> # Add default OpenStreetMap map tiles
+  addMarkers(
+    lng = bases$lon,
+    lat = bases$lat,
+    popup = bases$basename,
+    label = bases$countryname
+  )
+```
+
+```{r}
+build <-
+  get_builddata(startyear = 2008, endyear = 2019) |>
+  filter(!is.na(lon)) |>
+  mutate(
+    cost = case_when(
+      spend_construction > 100000 ~ "More than $100,000,000",
+      spend_construction > 10000 ~ "More than $10,000,000",
+      spend_construction > 1000 ~ "More than $1,000,000",
+      TRUE ~ "$1,000,000 or less"
+    )
+  )
+
+pal <-
+  colorFactor("Dark2", domain = build$cost |> unique())
+
+leaflet() |>
+  addTiles() |> # Add default OpenStreetMap map tiles
+  addCircleMarkers(
+    data = build,
+    lng = build$lon,
+    lat = build$lat,
+    color = pal(build$cost),
+    popup = paste(
+      "<b>Location:</b>",
+      as.character(build$location),
+      "<br>",
+      "<b>Amount:</b>",
+      as.character(build$spend_construction),
+      "<br>"
+    )
+  ) |>
+  addLegend(
+    "bottomright",
+    pal = pal,
+    values = build$cost |> unique(),
+    title = "Type",
+    opacity = 1
+  )
+```
+
+```{r}
+mapdeck(style = mapdeck_style("light")) |>
+  add_scatterplot(
+    data = build,
+    lat = "lat",
+    lon = "lon",
+    layer_id = "scatter_layer",
+    radius = 10,
+    radius_min_pixels = 5,
+    radius_max_pixels = 100,
+    tooltip = "location"
+  )
+```
+
+```{r}
+top_five_names_by_year <-
+  babynames |>
+  arrange(desc(n)) |>
+  slice_head(n = 5, by = c(year, sex))
+
+top_five_names_by_year |>
+  ggplot(aes(x = n, fill = sex)) +
+  geom_histogram(position = "dodge") +
+  theme_minimal() +
+  scale_fill_brewer(palette = "Set1") +
+  labs(
+    x = "Babies with that name",
+    y = "Occurrences",
+    fill = "Sex"
+  ) 
 ```
